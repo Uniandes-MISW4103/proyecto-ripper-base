@@ -1,0 +1,41 @@
+{
+  "name": "misw-4103-ripper",
+  "version": "2.0.0",
+  "license": "MIT",
+  "description": "This repository contains the code for a random tester developed using [Playwright](https://playwright.dev/)",
+  "keywords": [
+    "playwright",
+    "random",
+    "tester",
+    "ripper"
+  ],
+  "contributors": [
+    {
+      "name": "Juan Manual Dominguez",
+      "email": "jm.dominguez@uniandes.edu.co"
+    },
+    {
+      "name": "Andrés Felipe López"
+    },
+    {
+      "name": "Santiago Cortés Fernández",
+      "email": "s.cortes@uniandes.edu.co"
+    }
+  ],
+  "main": "playwright.config.js",
+  "directories": {
+    "test": "tests"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "prepare": "npx playwright install",
+    "test": "node index.js"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^9.0.3",
+    "node-html-parser": "^6.1.13",
+    "playwright": "^1.48.1"
+  }
+}
