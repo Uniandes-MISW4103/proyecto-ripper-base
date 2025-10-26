@@ -15,11 +15,16 @@
       "email": "jm.dominguez@uniandes.edu.co"
     },
     {
-      "name": "Andrés Felipe López"
+      "name": "Andrés Felipe López",
+      "email": "af.lopez2@uniandes.edu.co"
     },
     {
       "name": "Santiago Cortés Fernández",
       "email": "s.cortes@uniandes.edu.co"
+    },
+    {
+      "name": "Julian Padilla Molina",
+      "email": "j.padilla@uniandes.edu.co"
     }
   ],
   "main": "playwright.config.js",
@@ -27,15 +32,15 @@
     "test": "tests"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "scripts": {
     "prepare": "npx playwright install",
     "test": "node index.js"
   },
   "dependencies": {
-    "@faker-js/faker": "^9.0.3",
-    "node-html-parser": "^6.1.13",
-    "playwright": "^1.48.1"
+    "@faker-js/faker": "^9.9.0",
+    "node-html-parser": "^7.0.1",
+    "playwright": "^1.55.0"
   }
 }

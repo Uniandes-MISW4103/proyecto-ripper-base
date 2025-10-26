@@ -707,28 +707,39 @@ function createErrorGraph() {
 }
 
 async function fillInput(elementHandle, page) {
-  let type = await page.evaluate((el) => {
-    return el.type;
-  }, elementHandle);
-  if (type === "text") {
-    elementHandle.click();
-    page.keyboard.type(faker.lorem.words());
-  } else if (type === "search") {
-    elementHandle.click();
-    page.keyboard.type(faker.random.alphaNumeric());
-  } else if (type === "password") {
-    elementHandle.click();
-    page.keyboard.type(faker.internet.password());
-  } else if (type === "email") {
-    elementHandle.click();
-    page.keyboard.type(faker.internet.email());
-  } else if (type === "tel") {
-    elementHandle.click();
-    page.keyboard.type(faker.phone.phoneNumber());
-  } else if (type === "number") {
-    elementHandle.click();
-    page.keyboard.type(faker.random.number);
-  } else if (type === "submit" || type === "radio" || type === "checkbox") {
-    elementHandle.click();
+  try {
+    const isAttached = await elementHandle.evaluate(el => el.isConnected).catch(() => false);
+    if (!isAttached) {
+      console.log("Element is not attached to DOM, skipping interaction");
+      return;
+    }
+
+    let type = await page.evaluate((el) => {
+      return el.type;
+    }, elementHandle);
+    
+    if (type === "text") {
+      await elementHandle.click();
+      await page.keyboard.type(faker.lorem.words());
+    } else if (type === "search") {
+      await elementHandle.click();
+      await page.keyboard.type(faker.string.alphanumeric());
+    } else if (type === "password") {
+      await elementHandle.click();
+      await page.keyboard.type(faker.internet.password());
+    } else if (type === "email") {
+      await elementHandle.click();
+      await page.keyboard.type(faker.internet.email());
+    } else if (type === "tel") {
+      await elementHandle.click();
+      await page.keyboard.type(faker.phone.number());
+    } else if (type === "number") {
+      await elementHandle.click();
+      await page.keyboard.type(faker.number.int().toString());
+    } else if (type === "submit" || type === "radio" || type === "checkbox") {
+      await elementHandle.click();
+    }
+  } catch (error) {
+    console.log(`Error filling input: ${error.message}`);
   }
 }

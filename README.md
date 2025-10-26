@@ -17,7 +17,7 @@ Para usar el GUI Ripper, debes seguir estos pasos:
 
   ```bash
   npm install
-  npm prepare
+  npm run prepare
   ```
 
 - **Configurar los parámetros deseados**: La carpeta raíz del repositorio contiene los archivos de configuración del GUI Ripper (`config.json`)
