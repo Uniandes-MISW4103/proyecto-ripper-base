@@ -219,11 +219,19 @@ function slugify(stringUrl) {
   return stringUrl.replace(/[\/:]/g, "-");
 }
 
+//Sanitize file name
+function sanitizeFileName(name) {
+  return name
+    .replace(/[^a-zA-Z0-9.\-_ ]/g, '')
+    .replace(/\s+/g, '_')
+    .substring(0, 255);
+}
+
 //Add listeners for crash events and console error messages
 async function addListeners(page) {
   page.on("pageerror", (err) => {
     err_name = err.toString();
-    let capture_path = screenshots_directory + err_name + ".png";
+    let capture_path = screenshots_directory + "/" + sanitizeFileName(err_name) + ".png";
     page.screenshot({ path: capture_path });
   });
 
