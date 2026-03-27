@@ -6,14 +6,23 @@ Este repositorio está basado en la implementación de [TheSoftwareDesignLab/RIP
 
 ## Requisitos
 
-- Node.js (v20 o superior). Recomendamos usar lts/iron.
-- npm o yarn para la gestión de dependencias.
+- Node.js (v22 o superior). Recomendamos usar `lts/jod`.
+- npm para la gestión de dependencias.
 
 ## Cómo ejecutar
 
 Para usar el GUI Ripper, debes seguir estos pasos:
 
 - **Instalar los módulos requeridos**
+
+  Desde la **raíz del repositorio**:
+
+  ```bash
+  npm run ripper:install
+  npm run ripper:prepare
+  ```
+
+  O bien, desde el directorio del módulo:
 
   ```bash
   npm install
@@ -41,16 +50,22 @@ Para usar el GUI Ripper, debes seguir estos pasos:
           "nameInput": "Mario",
           "emailInput": "mario@b.com"
       },
-      /** list of browser to use for the execution */
-      "browsers": ["chromium", "webkit", "firefox"]
+      /** list of browsers to use for the execution (supported: "chromium", "firefox", "webkit") */
+      "browsers": ["chromium"]
   }
   ```
 
-- **Ejecutar el GUI Ripper**: Los comandos para ejecutar las pruebas deben ejecutarse desde la carpeta raíz.
+- **Ejecutar el GUI Ripper**: Los comandos para ejecutar las pruebas deben ejecutarse desde la **raíz del repositorio**.
 
   ```bash
-  npm run test
+  # Modo headless (usa el valor de config.json)
+  npm run ripper:test
+
+  # Modo con interfaz gráfica (sobreescribe el flag headless del config.json)
+  npm run ripper:ui
   ```
+
+  La variable de entorno `HEADLESS=false` utilizada por `ripper:ui` sobreescribe el valor del campo `headless` en `config.json`, permitiendo ejecutar el ripper con navegador visible sin modificar la configuración.
 
 ## Reportes
 
