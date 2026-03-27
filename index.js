@@ -15,7 +15,7 @@ var graphFilenameRoot = "graph";
 //Get configuration parameters.
 let config = require("./config.json");
 let baseUrl = config.url;
-let headlessFlag = config.headless;
+let headlessFlag = process.env.HEADLESS === "false" ? false : config.headless;
 let depthLevels = config.depthLevels;
 let inputValuesFlag = config.inputValues;
 let viewportHeight = config.viewportHeight || 720;
@@ -49,7 +49,7 @@ console.log(inputValues);
     return;
   }
   let datetime = new Date().toISOString().replace(/:/g, ".");
-  for (b of browsers) {
+  for (const b of browsers) {
     if (!b in ["chromium", "webkit", "firefox"]) {
       return;
     }
@@ -99,9 +99,7 @@ console.log(inputValues);
 
     fs.copyFileSync("./public/index.html", `${basePath}/report.html`);
     fs.copyFileSync("./public/index.css", `${basePath}/report.css`);
-    fs.rmdirSync(temp_directory, { recursive: true }, (err) => {
-      console.log("Error deleting temp directory", err);
-    });
+    fs.rmSync(temp_directory, { recursive: true });
   }
 
   console.log(
