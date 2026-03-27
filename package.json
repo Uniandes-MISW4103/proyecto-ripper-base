@@ -35,11 +35,13 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "prepare": "npx playwright install",
-    "test": "node index.js"
+    "prepare": "npx playwright install chromium",
+    "test": "node index.js",
+    "test:ui": "cross-env HEADLESS=false node index.js"
   },
   "dependencies": {
     "@faker-js/faker": "^9.9.0",
+    "cross-env": "^7.0.3",
     "node-html-parser": "^7.0.1",
     "playwright": "^1.55.0"
   }
