@@ -560,16 +560,21 @@ async function interactWithObject(
       location.width !== 0 &&
       location.height !== 0
     ) {
+      // Only serializable data can leave page.evaluate: read each option's value and state,
+      // then select the enabled ones through Playwright.
       let options = await page.evaluate((el) => {
-        return el.options;
+        return Array.from(el.options).map((option) => ({
+          value: option.value,
+          disabled: option.disabled,
+        }));
       }, elementHandle);
       console.log(options);
       let prevDOM = await getDOM(page);
       for (let i = 0; i < options.length; i++) {
-        if (typeof options[i].getAttribute("disabled") !== "string") {
-          //i.e IF the option is enabled
-          await elementHandle.click();
-          await options[i].click();
+        if (!options[i].disabled) {
+          await elementHandle.selectOption(options[i].value).catch((e) => {
+            console.log("Could not select option " + options[i].value);
+          });
           let currentDOM = await getDOM(page);
           //string replacement to compare DOMS without selected
           var unchanged =
