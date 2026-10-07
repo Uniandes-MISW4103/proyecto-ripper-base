@@ -104,7 +104,7 @@ console.log(inputValues);
     await browser.close();
 
     fs.copyFileSync("./public/index.html", `${basePath}/report.html`);
-    fs.copyFileSync("./public/index.css", `${basePath}/report.css`);
+    fs.copyFileSync("./public/index.css", `${basePath}/index.css`);
     fs.rmSync(temp_directory, { recursive: true });
   }
 
