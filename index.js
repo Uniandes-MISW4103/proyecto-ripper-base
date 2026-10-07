@@ -49,10 +49,17 @@ console.log(inputValues);
     return;
   }
   let datetime = new Date().toISOString().replace(/:/g, ".");
+  const supportedBrowsers = ["chromium", "webkit", "firefox"];
+  const unsupported = browsers.filter((b) => !supportedBrowsers.includes(b));
+  if (unsupported.length > 0) {
+    console.error(
+      `Unsupported browsers in config.json: ${unsupported.join(", ")}. ` +
+        `Use one or more of: ${supportedBrowsers.join(", ")}`
+    );
+    process.exitCode = 1;
+    return;
+  }
   for (const b of browsers) {
-    if (!b in ["chromium", "webkit", "firefox"]) {
-      return;
-    }
     console.log(b);
     let basePath = `./results/${datetime}/${b}`;
     screenshots_directory = `${basePath}/screenshots`;
