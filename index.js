@@ -66,11 +66,10 @@ console.log(inputValues);
     temp_directory = `${basePath}/temp` + b;
     graphFilenameRoot = `${basePath}/graph`;
     //Launch the current browser context
-    const browser = await playwright[b].launch({
-      headless: headlessFlag,
+    const browser = await playwright[b].launch({ headless: headlessFlag });
+    const context = await browser.newContext({
       viewport: { width: viewportWidth, height: viewportHeight },
     });
-    const context = await browser.newContext();
     const page = await context.newPage();
 
     //Make sure errors and console events are catched
