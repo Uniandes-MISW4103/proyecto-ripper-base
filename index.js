@@ -530,7 +530,7 @@ async function interactWithObject(
           let imagePath = screenshots_directory + "/" + thisState + ".png";
           await page.screenshot({ path: imagePath, fullPage: true });
         } else {
-          fs.unlinkSync(
+          fs.rmSync(
             screenshots_directory +
               "/" +
               "state_" +
@@ -539,9 +539,7 @@ async function interactWithObject(
               statesDiscovered +
               beforeInteraction +
               ".png",
-            (err) => {
-              if (err) console.log(err);
-            }
+            { force: true }
           );
         }
         await page
@@ -604,7 +602,7 @@ async function interactWithObject(
               let imagePath = screenshots_directory + "/" + thisState + ".png";
               await page.screenshot({ path: imagePath, fullPage: true });
             } else {
-              fs.unlinkSync(
+              fs.rmSync(
                 screenshots_directory +
                   "/" +
                   "state_" +
@@ -613,9 +611,7 @@ async function interactWithObject(
                   statesDiscovered +
                   beforeInteraction +
                   ".png",
-                (err) => {
-                  if (err) console.log(err);
-                }
+                { force: true }
               );
             }
             await page
