@@ -101,7 +101,7 @@ console.log(inputValues);
     visitedPages.clear();
     pageTree = {};
     errors = [];
-    browser.close();
+    await browser.close();
 
     fs.copyFileSync("./public/index.html", `${basePath}/report.html`);
     fs.copyFileSync("./public/index.css", `${basePath}/report.css`);
