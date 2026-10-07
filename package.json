@@ -27,10 +27,6 @@
       "email": "j.padilla@uniandes.edu.co"
     }
   ],
-  "main": "playwright.config.js",
-  "directories": {
-    "test": "tests"
-  },
   "engines": {
     "node": ">=24"
   },
