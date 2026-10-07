@@ -395,7 +395,7 @@ async function getButtons(page, elementList) {
   let buttons = await page.$$("button");
   let button;
   for (let i = 0; i < buttons.length; i++) {
-    let disabled = page.evaluate((btn) => {
+    let disabled = await page.evaluate((btn) => {
       return (
         typeof btn.getAttribute("disabled") === "string" ||
         btn.getAttribute("aria-disabled") === "true"
