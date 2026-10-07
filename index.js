@@ -49,21 +49,27 @@ console.log(inputValues);
     return;
   }
   let datetime = new Date().toISOString().replace(/:/g, ".");
+  const supportedBrowsers = ["chromium", "webkit", "firefox"];
+  const unsupported = browsers.filter((b) => !supportedBrowsers.includes(b));
+  if (unsupported.length > 0) {
+    console.error(
+      `Unsupported browsers in config.json: ${unsupported.join(", ")}. ` +
+        `Use one or more of: ${supportedBrowsers.join(", ")}`
+    );
+    process.exitCode = 1;
+    return;
+  }
   for (const b of browsers) {
-    if (!b in ["chromium", "webkit", "firefox"]) {
-      return;
-    }
     console.log(b);
     let basePath = `./results/${datetime}/${b}`;
     screenshots_directory = `${basePath}/screenshots`;
     temp_directory = `${basePath}/temp` + b;
     graphFilenameRoot = `${basePath}/graph`;
     //Launch the current browser context
-    const browser = await playwright[b].launch({
-      headless: headlessFlag,
+    const browser = await playwright[b].launch({ headless: headlessFlag });
+    const context = await browser.newContext({
       viewport: { width: viewportWidth, height: viewportHeight },
     });
-    const context = await browser.newContext();
     const page = await context.newPage();
 
     //Make sure errors and console events are catched
@@ -95,10 +101,10 @@ console.log(inputValues);
     visitedPages.clear();
     pageTree = {};
     errors = [];
-    browser.close();
+    await browser.close();
 
     fs.copyFileSync("./public/index.html", `${basePath}/report.html`);
-    fs.copyFileSync("./public/index.css", `${basePath}/report.css`);
+    fs.copyFileSync("./public/index.css", `${basePath}/index.css`);
     fs.rmSync(temp_directory, { recursive: true });
   }
 
@@ -389,7 +395,7 @@ async function getButtons(page, elementList) {
   let buttons = await page.$$("button");
   let button;
   for (let i = 0; i < buttons.length; i++) {
-    let disabled = page.evaluate((btn) => {
+    let disabled = await page.evaluate((btn) => {
       return (
         typeof btn.getAttribute("disabled") === "string" ||
         btn.getAttribute("aria-disabled") === "true"
@@ -524,7 +530,7 @@ async function interactWithObject(
           let imagePath = screenshots_directory + "/" + thisState + ".png";
           await page.screenshot({ path: imagePath, fullPage: true });
         } else {
-          fs.unlinkSync(
+          fs.rmSync(
             screenshots_directory +
               "/" +
               "state_" +
@@ -533,9 +539,7 @@ async function interactWithObject(
               statesDiscovered +
               beforeInteraction +
               ".png",
-            (err) => {
-              if (err) console.log(err);
-            }
+            { force: true }
           );
         }
         await page
@@ -554,16 +558,21 @@ async function interactWithObject(
       location.width !== 0 &&
       location.height !== 0
     ) {
+      // Only serializable data can leave page.evaluate: read each option's value and state,
+      // then select the enabled ones through Playwright.
       let options = await page.evaluate((el) => {
-        return el.options;
+        return Array.from(el.options).map((option) => ({
+          value: option.value,
+          disabled: option.disabled,
+        }));
       }, elementHandle);
       console.log(options);
       let prevDOM = await getDOM(page);
       for (let i = 0; i < options.length; i++) {
-        if (typeof options[i].getAttribute("disabled") !== "string") {
-          //i.e IF the option is enabled
-          await elementHandle.click();
-          await options[i].click();
+        if (!options[i].disabled) {
+          await elementHandle.selectOption(options[i].value).catch((e) => {
+            console.log("Could not select option " + options[i].value);
+          });
           let currentDOM = await getDOM(page);
           //string replacement to compare DOMS without selected
           var unchanged =
@@ -593,7 +602,7 @@ async function interactWithObject(
               let imagePath = screenshots_directory + "/" + thisState + ".png";
               await page.screenshot({ path: imagePath, fullPage: true });
             } else {
-              fs.unlinkSync(
+              fs.rmSync(
                 screenshots_directory +
                   "/" +
                   "state_" +
@@ -602,9 +611,7 @@ async function interactWithObject(
                   statesDiscovered +
                   beforeInteraction +
                   ".png",
-                (err) => {
-                  if (err) console.log(err);
-                }
+                { force: true }
               );
             }
             await page

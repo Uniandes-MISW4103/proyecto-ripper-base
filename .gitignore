@@ -140,3 +140,6 @@ dist
 /blob-report/
 /playwright/.cache/
 /results/
+
+# Only the root lockfile of the student repository is versioned (see proyecto-base)
+package-lock.json

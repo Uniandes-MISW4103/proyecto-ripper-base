@@ -27,12 +27,8 @@
       "email": "j.padilla@uniandes.edu.co"
     }
   ],
-  "main": "playwright.config.js",
-  "directories": {
-    "test": "tests"
-  },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=24"
   },
   "scripts": {
     "prepare": "npx playwright install chromium",
@@ -40,9 +36,9 @@
     "test:ui": "cross-env HEADLESS=false node index.js"
   },
   "dependencies": {
-    "@faker-js/faker": "^9.9.0",
-    "cross-env": "^7.0.3",
-    "node-html-parser": "^7.0.1",
-    "playwright": "^1.55.0"
+    "@faker-js/faker": "~10.6.0",
+    "cross-env": "~10.1.0",
+    "node-html-parser": "~9.0.4",
+    "playwright": "~1.63.0"
   }
 }

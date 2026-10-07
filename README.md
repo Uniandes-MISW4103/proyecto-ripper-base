@@ -1,72 +1,114 @@
-# Playwirght Random Tester (GUI Ripper)
+# Proyecto Base: Pruebas de Reconocimiento con un GUI Ripper (Playwright)
 
-Este repositorio contiene el código para un GUI Ripper desarrollado utilizando [Playwright](https://playwright.dev/) un ejecutor de pruebas End to End construido sobre JavaScript.
+Un _GUI ripper_ explora automáticamente la interfaz gráfica de una aplicación web: visita sus
+páginas, interactúa con los elementos que encuentra (campos de texto, botones, listas
+desplegables, enlaces) y construye un grafo con los estados de la interfaz y las transiciones entre
+ellos. Es una técnica de reconocimiento: ayuda a descubrir la estructura de la aplicación y errores
+evidentes sin escribir casos de prueba.
 
-Este repositorio está basado en la implementación de [TheSoftwareDesignLab/RIPuppetCoursera](https://github.com/TheSoftwareDesignLab/RIPuppetCoursera).
+Este módulo usa [Playwright](https://playwright.dev) como librería y está basado en
+[TheSoftwareDesignLab/RIPuppetCoursera](https://github.com/TheSoftwareDesignLab/RIPuppetCoursera).
 
 ## Requisitos
 
-- Node.js (v22 o superior). Recomendamos usar `lts/jod`.
-- npm para la gestión de dependencias.
+- Node.js 24 (`lts/krypton`). El módulo incluye un `.nvmrc`, por lo que pueden usar `nvm use`.
+- npm (incluido con Node.js).
+- Navegador: `prepare` descarga Chromium para Playwright. Si configuran Firefox o WebKit, instálenlos
+  con `npx playwright install firefox webkit`.
 
-## Cómo ejecutar
+## Instalación
 
-Para usar el GUI Ripper, debes seguir estos pasos:
+Desde la **raíz del repositorio** del proyecto:
 
-- **Instalar los módulos requeridos**
+```bash
+npm run ripper:install
+npm run ripper:prepare
+```
 
-  Desde la **raíz del repositorio**:
+> [!IMPORTANT]
+> Instalen siempre desde la raíz. `ripper:install` deja las dependencias del módulo en su propia
+> carpeta `node_modules`, aisladas de los demás módulos. Un `npm install` dentro de la carpeta del
+> módulo instala en la raíz del repositorio y modifica el `package-lock.json` raíz sin ese aislamiento.
 
-  ```bash
-  npm run ripper:install
-  npm run ripper:prepare
-  ```
+## Ejecución
 
-  O bien, desde el directorio del módulo:
+| Acción | Desde la raíz | Desde `reconocimiento/misw-4103-ripper` |
+|---|---|---|
+| Explorar en modo headless (según `config.json`) | `npm run ripper:test` | `npm test` |
+| Explorar viendo el navegador | `npm run ripper:ui` | `npm run test:ui` |
 
-  ```bash
-  npm install
-  npm run prepare
-  ```
+`ripper:ui` define `HEADLESS=false`, que tiene prioridad sobre el campo `headless` de `config.json`.
 
-- **Configurar los parámetros deseados**: La carpeta raíz del repositorio contiene los archivos de configuración del GUI Ripper (`config.json`)
+## Estructura
 
-  ```javascript
-  {
-      /** Base URL to initiate the exploration */
-      "url": "https://thesoftwaredesignlab.github.io",
-      /** indicates weheter the execution will be on headless mode */
-      "headless": true,
-      /** Ripper tree exploration level */
-      "depthLevels": 1,
-      /** indicates whether to use the data from values' */
-      "inputValues": false,
+```plaintext
+misw-4103-ripper/
+├── .nvmrc
+├── package.json
+├── config.json        # parámetros de la exploración
+├── index.js           # el ripper
+└── public/
+    ├── index.html     # plantilla del reporte (grafo interactivo)
+    └── index.css
+```
 
-      /** Key-value pairs containing the html ID (key) and input (value) to be used by the ripper */
-      "values": {
-          "userInput": "Mario",
-          "passwordInput": "123456",
-          "passwordTwoInput": "123456",
-          "nameInput": "Mario",
-          "emailInput": "mario@b.com"
-      },
-      /** list of browsers to use for the execution (supported: "chromium", "firefox", "webkit") */
-      "browsers": ["chromium"]
-  }
-  ```
+## Configuración
 
-- **Ejecutar el GUI Ripper**: Los comandos para ejecutar las pruebas deben ejecutarse desde la **raíz del repositorio**.
+`config.json`:
 
-  ```bash
-  # Modo headless (usa el valor de config.json)
-  npm run ripper:test
+| Campo | Descripción | Valor por defecto |
+|---|---|---|
+| `url` | Página inicial. También define qué es "el mismo sitio": solo se interactúa con las páginas cuya URL contiene este valor; las demás solo se capturan. | `https://thesoftwaredesignlab.github.io` |
+| `headless` | Ejecutar sin ventana del navegador. | `true` |
+| `depthLevels` | Profundidad de la exploración siguiendo enlaces (`1` = página inicial y los enlaces que contiene). | `1` |
+| `inputValues` | Si es `true`, los campos cuyo `id` aparezca en `values` se llenan con ese valor. | `false` |
+| `values` | Pares `id del campo → valor`. Los demás campos se llenan con datos aleatorios según su tipo. | ejemplo de formulario |
+| `browsers` | Navegadores a usar: `chromium`, `firefox` y/o `webkit`. | `["chromium"]` |
+| `viewportWidth`, `viewportHeight` | Tamaño de la ventana (opcionales). | `1280` × `720` |
 
-  # Modo con interfaz gráfica (sobreescribe el flag headless del config.json)
-  npm run ripper:ui
-  ```
+Para explorar Ghost, por ejemplo, usen `"url": "http://localhost:2368"` y, si necesitan iniciar
+sesión, `inputValues: true` con los `id` de los campos del formulario en `values`.
 
-  La variable de entorno `HEADLESS=false` utilizada por `ripper:ui` sobreescribe el valor del campo `headless` en `config.json`, permitiendo ejecutar el ripper con navegador visible sin modificar la configuración.
+## Qué hace la exploración
 
-## Reportes
+En cada página del mismo sitio el ripper:
 
-El GUI Ripper genera un reporte con la exploración realizada por cada uno de los browsers definidos en la configuración. Cada reporte contiene un un archivo `.html` y una serie de archivos `.json` con el grafo de exploración.
+1. Llena los `input` (con `values` o con datos aleatorios de [Faker](https://fakerjs.dev) según su tipo).
+2. Hace clic en cada botón habilitado; si el DOM cambia a un estado nuevo, lo registra como
+   transición `button-click` y guarda una captura del botón antes del clic (`…BEFORE.png`).
+3. Selecciona cada opción habilitada de cada `select`; si el DOM cambia, registra `dropdown-opt-click`.
+4. Toma una captura de la página completa y sigue sus enlaces (`link-click`) hasta `depthLevels`.
+
+Los mensajes de consola se asocian a los estados de la URL en la que aparecieron (`graph3.json`), y
+cada excepción no controlada de la página genera una captura en `screenshots/`.
+
+## Resultados y reporte
+
+Cada ejecución crea `results/<fecha>/<navegador>/` (en el `.gitignore`) con:
+
+- `screenshots/`: una captura por estado y las capturas `…BEFORE.png` de los botones.
+- `graph.json` (páginas y enlaces), `graph2.json` (estados y transiciones) y `graph3.json`
+  (estados con sus errores).
+- `report.html` e `index.css`: reporte con el grafo interactivo; al hacer clic en un nodo se ven su
+  captura y sus errores.
+
+El reporte carga `graph3.json` con una petición HTTP, que los navegadores bloquean si se abre como
+archivo (`file://`). Sírvanlo con un servidor local, por ejemplo:
+
+```bash
+npx http-server "results/<fecha>/chromium" -o report.html
+```
+
+El reporte descarga D3, jQuery y Bootstrap desde Internet.
+
+## Solución de problemas
+
+- **`Executable doesn't exist at …`**: falta el navegador; ejecuten `npm run ripper:prepare`.
+- **`Unsupported browsers in config.json`**: revisen el campo `browsers`.
+- **El reporte se ve vacío**: lo abrieron como archivo; sírvanlo por HTTP (ver arriba).
+- **Advertencia `EBADENGINE`**: están usando una versión de Node.js anterior a la 24.
+
+## Referencias
+
+- [Playwright como librería](https://playwright.dev/docs/library)
+- [RIPuppetCoursera](https://github.com/TheSoftwareDesignLab/RIPuppetCoursera)
