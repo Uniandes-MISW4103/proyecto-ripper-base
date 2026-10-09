@@ -45,8 +45,9 @@ npm run ripper:prepare
 misw-4103-ripper/
 ├── .nvmrc
 ├── package.json
+├── abp.cjs            # lee la configuración de la aplicación bajo pruebas (.env)
 ├── config.json        # parámetros de la exploración
-├── index.js           # el ripper
+├── index.js           # el ripper (beforeExploring prepara la aplicación)
 └── public/
     ├── index.html     # plantilla del reporte (grafo interactivo)
     └── index.css
@@ -58,7 +59,7 @@ misw-4103-ripper/
 
 | Campo | Descripción | Valor por defecto |
 |---|---|---|
-| `url` | Página inicial. También define qué es "el mismo sitio": solo se interactúa con las páginas cuya URL contiene este valor; las demás solo se capturan. | `https://thesoftwaredesignlab.github.io` |
+| `url` | Página inicial. También define qué es "el mismo sitio": solo se interactúa con las páginas cuya URL contiene este valor; las demás solo se capturan. | `https://angular-6-registration-login-example.stackblitz.io` (demo en StackBlitz) |
 | `headless` | Ejecutar sin ventana del navegador. | `true` |
 | `depthLevels` | Profundidad de la exploración siguiendo enlaces (`1` = página inicial y los enlaces que contiene). | `1` |
 | `inputValues` | Si es `true`, los campos cuyo `id` aparezca en `values` se llenan con ese valor. | `false` |
@@ -66,8 +67,25 @@ misw-4103-ripper/
 | `browsers` | Navegadores a usar: `chromium`, `firefox` y/o `webkit`. | `["chromium"]` |
 | `viewportWidth`, `viewportHeight` | Tamaño de la ventana (opcionales). | `1280` × `720` |
 
-Para explorar Ghost, por ejemplo, usen `"url": "http://localhost:2368"` y, si necesitan iniciar
-sesión, `inputValues: true` con los `id` de los campos del formulario en `values`.
+## Explorar la ABP
+
+La URL y el administrador de la aplicación bajo pruebas (ABP) están en el archivo `.env` de la raíz
+del repositorio, el mismo que usa `npm run abp:up` para desplegar Ghost; `abp.cjs` lo lee. Las
+variables disponibles son `ABP_URL`, `ABP_RC_URL`, `ABP_ADMIN_NAME`, `ABP_ADMIN_EMAIL` y
+`ABP_ADMIN_PASSWORD`. Una variable de entorno con el mismo nombre tiene prioridad sobre el `.env`;
+fuera de un repositorio del proyecto (sin `.env`) se usan los valores por defecto de `abp.cjs`. `index.js` las carga en `abp` (por ejemplo, `abp.ABP_ADMIN_EMAIL`), sin copiarlas en el
+módulo.
+
+Para explorar Ghost:
+
+1. Usen en `url` la de `ABP_URL` (`http://localhost:2368`) y levanten la ABP (`npm run abp:up` desde
+   la raíz).
+2. Para explorar el panel de administración, inicien sesión en la función `beforeExploring(page)` de
+   `index.js`: se ejecuta una vez por navegador, antes de la exploración, sobre la misma página que
+   usa el ripper. Usen `abp.ABP_URL`, `abp.ABP_ADMIN_EMAIL` y `abp.ABP_ADMIN_PASSWORD`.
+
+`inputValues` y `values` sirven para llenar con valores fijos los campos que el ripper encuentre al
+explorar (por ejemplo, un formulario de búsqueda).
 
 ## Qué hace la exploración
 
