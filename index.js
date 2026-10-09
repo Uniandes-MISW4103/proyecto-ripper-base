@@ -14,6 +14,8 @@ var graphFilenameRoot = "graph";
 
 //Get configuration parameters.
 let config = require("./config.json");
+//Settings of the application under test, from the repository's .env (see abp.cjs and beforeExploring).
+const abp = require("./abp.cjs");
 let baseUrl = config.url;
 let headlessFlag = process.env.HEADLESS === "false" ? false : config.headless;
 let depthLevels = config.depthLevels;
@@ -75,6 +77,8 @@ console.log(inputValues);
     //Make sure errors and console events are catched
     await addListeners(page);
 
+    await beforeExploring(page);
+
     if (!fs.existsSync(screenshots_directory)) {
       fs.mkdirSync(screenshots_directory, { recursive: true });
     } else {
@@ -116,6 +120,12 @@ console.log(inputValues);
 })();
 
 //Get all anchors <a>
+/**
+ * Runs once per browser, before the exploration, on the page the ripper uses. Prepare the application
+ * here, for example log in with abp.ABP_ADMIN_EMAIL and abp.ABP_ADMIN_PASSWORD at abp.ABP_URL.
+ */
+async function beforeExploring(page) {}
+
 async function scrapLinks(page) {
   const stories = await page.evaluate(() => {
     const anchors = Array.from(document.querySelectorAll("a"));
