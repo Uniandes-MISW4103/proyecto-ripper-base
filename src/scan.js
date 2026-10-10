@@ -24,9 +24,11 @@ export function scanDocument({ ignore, autoIdPattern, maxOptions }) {
         return false;
       }
     });
+  // Visible and reachable: not collapsed to 1px (screen-reader-only text) and not placed off the page.
   const isVisible = (el) => {
     const rect = el.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return false;
+    if (rect.width <= 1 || rect.height <= 1) return false;
+    if (rect.right + scrollX <= 0 || rect.bottom + scrollY <= 0) return false;
     return el.checkVisibility ? el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) : true;
   };
   const isDisabled = (el) =>
@@ -84,17 +86,29 @@ export function scanDocument({ ignore, autoIdPattern, maxOptions }) {
     return cssPath(el);
   }
 
+  // A human-readable name for reports: visible text first, then accessible hints, then structure.
   function labelOf(el) {
+    const testAttribute = testAttributes(el)[0];
+    let linkPath = "";
+    if (el.localName === "a" && URL.canParse(el.href)) {
+      const url = new URL(el.href);
+      linkPath = url.pathname + url.hash;
+    }
     return clean(
       el.getAttribute("aria-label") ||
         el.innerText ||
         el.labels?.[0]?.innerText ||
+        (el.previousElementSibling?.localName === "label" ? el.previousElementSibling.innerText : "") ||
         el.getAttribute("title") ||
         el.getAttribute("placeholder") ||
         el.getAttribute("alt") ||
+        el.querySelector("img[alt]")?.getAttribute("alt") ||
+        el.querySelector("svg title")?.textContent ||
         el.getAttribute("name") ||
         (el.localName === "input" ? el.value : "") ||
-        el.localName,
+        (testAttribute ? `[${testAttribute.name}${testAttribute.value ? `=${testAttribute.value}` : ""}]` : "") ||
+        linkPath ||
+        (el.classList.length > 0 ? `${el.localName}.${el.classList[0]}` : el.localName),
     );
   }
 
@@ -211,7 +225,9 @@ export function scanDocument({ ignore, autoIdPattern, maxOptions }) {
     title: document.title,
     headings,
     dialog: dialog ? clean(dialog.querySelector("h1, h2, h3, [role=heading]")?.innerText ?? "dialog", 60) : null,
-    alerts: [...document.querySelectorAll("[role=alert], [aria-invalid=true]")].some(isVisible),
+    alerts: [...document.querySelectorAll("[role=alert], [aria-invalid=true], .alert, .error, .is-invalid, .invalid-feedback")].some(
+      isVisible,
+    ),
     descriptors,
     elements,
   };

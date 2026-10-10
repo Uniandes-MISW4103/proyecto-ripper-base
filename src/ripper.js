@@ -4,7 +4,7 @@
 // action, so it can stop at any point (budget, Ctrl+C) and resume later from the same point.
 import { valueFor } from "./data.js";
 import { discoverActions, orderActions } from "./discovery.js";
-import { matches } from "./fingerprint.js";
+import { matches, routeOf } from "./fingerprint.js";
 
 export class Ripper {
   #stopRequested = false;
@@ -81,7 +81,7 @@ export class Ripper {
     const state = model.addState({
       fingerprint: observed.fingerprint,
       abstraction: observed.abstraction,
-      route: observed.abstraction[0].slice("route:".length),
+      route: routeOf(observed.abstraction),
       url: observed.scan.url,
       title: observed.scan.title,
       depth,
@@ -112,17 +112,20 @@ export class Ripper {
     return this.#replay(state);
   }
 
+  // Intermediate steps only need to reach the expected route (the next action's target is checked by
+  // performing it); the final page must match the state.
   async #replay(state) {
     const { model, session } = this;
     try {
       await session.home();
-      if (!matches(await session.observe(), model.state("s0"))) return false;
+      let current = await session.observe();
       for (const step of state.path) {
+        if (routeOf(current.abstraction) !== model.state(step.from).route) return false;
         await session.perform(model.action(step.from, step.action), this.#valueFn(step.from, step.action));
         await session.settle();
-        if (!matches(await session.observe(), model.state(step.to))) return false;
+        current = await session.observe();
       }
-      return true;
+      return matches(current, state);
     } catch {
       return false;
     } finally {
@@ -133,6 +136,8 @@ export class Ripper {
   async #step(state, action) {
     const { model, session } = this;
     const event = model.nextEvent;
+    // What happened while reaching the state belongs to earlier events, not to this action.
+    session.drain();
     const screenshot = (await session.screenshotTarget(action, this.run.path("screenshots", `e${event}.png`)))
       ? `screenshots/e${event}.png`
       : null;

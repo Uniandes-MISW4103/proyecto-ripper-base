@@ -9,35 +9,50 @@ import { scanDocument } from "./scan.js";
 
 const MAX_SELECT_OPTIONS = 5;
 
-/** Waits for the DOM to stay unchanged for `quietMs` (at most 6 × quietMs), surviving navigations. */
-export async function settle(page, quietMs) {
-  for (let attempt = 0; attempt < 2; attempt++) {
+/**
+ * Waits until the page is idle: no requests in flight, no DOM changes for `quietMs` and no running CSS
+ * animations or transitions, for at most max(10 × quietMs, 3 s). Survives navigations.
+ * @param {import("playwright").Page} page
+ * @param {number} quietMs
+ * @param {() => boolean} networkIdle
+ */
+export async function settle(page, quietMs, networkIdle = () => true) {
+  const deadline = Date.now() + Math.max(quietMs * 10, 3000);
+  for (let attempt = 0; attempt < 3 && Date.now() < deadline; attempt++) {
     await page.waitForLoadState("domcontentloaded").catch(() => {});
+    while (!networkIdle() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 50));
     try {
-      await page.evaluate(
-        (quiet) =>
-          new Promise((resolve) => {
-            const observer = new MutationObserver(() => {
-              clearTimeout(timer);
-              timer = setTimeout(done, quiet);
-            });
-            let timer = setTimeout(done, quiet);
-            const deadline = setTimeout(done, quiet * 6);
-            function done() {
-              observer.disconnect();
-              clearTimeout(timer);
-              clearTimeout(deadline);
-              resolve();
-            }
-            observer.observe(document, { subtree: true, childList: true, attributes: true, characterData: true });
-          }),
-        quietMs,
-      );
-      return;
+      await page.evaluate(domQuiet, { quiet: quietMs, max: Math.max(0, deadline - Date.now()) });
+      if (networkIdle()) return;
     } catch {
       // The page navigated while waiting: wait again on the new document.
     }
   }
+}
+
+// Runs in the page: resolves when the DOM has not changed for `quiet` ms and no finite animation runs.
+function domQuiet({ quiet, max }) {
+  return new Promise((resolve) => {
+    const start = performance.now();
+    let lastChange = start;
+    const observer = new MutationObserver(() => {
+      lastChange = performance.now();
+    });
+    observer.observe(document, { subtree: true, childList: true, attributes: true, characterData: true });
+    const animating = () =>
+      document.getAnimations().some((animation) => {
+        const { iterations } = animation.effect?.getTiming() ?? {};
+        return animation.playState === "running" && iterations !== Infinity;
+      });
+    const timer = setInterval(() => {
+      const now = performance.now();
+      if ((now - lastChange >= quiet && !animating()) || now - start >= max) {
+        clearInterval(timer);
+        observer.disconnect();
+        resolve();
+      }
+    }, 50);
+  });
 }
 
 export class Session {
@@ -48,6 +63,7 @@ export class Session {
   #oracles = null;
   #dialogs = [];
   #external = [];
+  #inflight = new Set();
 
   /**
    * @param {{ config: object, beforeExploring: (page: import("playwright").Page, context: object) => Promise<void>,
@@ -78,6 +94,11 @@ export class Session {
     this.#context.setDefaultNavigationTimeout(config.navigationTimeoutMs);
     this.#page = await this.#context.newPage();
     this.#oracles = new Oracles(this.#page, this.inScope);
+    this.#inflight = new Set();
+    const inflight = this.#inflight;
+    this.#page.on("request", (request) => inflight.add(request));
+    this.#page.on("requestfinished", (request) => inflight.delete(request));
+    this.#page.on("requestfailed", (request) => inflight.delete(request));
     this.#page.on("dialog", (dialog) => {
       this.#dialogs.push(dialog.message());
       dialog.dismiss().catch(() => {});
@@ -111,7 +132,8 @@ export class Session {
   }
 
   settle() {
-    return settle(this.#page, this.config.settleMs);
+    const inflight = this.#inflight;
+    return settle(this.#page, this.config.settleMs, () => inflight.size === 0);
   }
 
   /** Scans the page and identifies its state. */

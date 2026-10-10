@@ -126,8 +126,10 @@ Para explorar Ghost:
    ripper la ejecuta en cada contexto nuevo del navegador antes de abrir `url`: al empezar y cada vez
    que necesita un contexto limpio para restaurar un estado.
 3. Revisen `exclude`: además de cerrar sesión, excluyan las acciones que destruyen los datos que la
-   exploración necesita (por ejemplo, borrar todo el contenido) o que la sacan del panel. También
-   pueden excluir acciones con la función `isExcluded(action)` de `hooks.js`.
+   exploración necesita (por ejemplo, borrar todo el contenido), las que la sacan del panel y las que
+   cambian preferencias que la ABP guarda (por ejemplo, ocultar el menú lateral): después de ellas,
+   los estados anteriores ya no se pueden restaurar. También pueden excluir acciones con la función
+   `isExcluded(action)` de `hooks.js`.
 
 `values` sirve para llenar con valores fijos los campos que el ripper encuentre al explorar (por
 ejemplo, un formulario de búsqueda).

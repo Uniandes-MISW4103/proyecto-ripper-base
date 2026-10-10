@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { AUTO_ID_PATTERN, abstractionOf, collapse, fingerprintOf, matches, normalizeRoute, similarity } from "../../src/fingerprint.js";
+import { AUTO_ID_PATTERN, abstractionOf, fingerprintOf, matches, normalizeRoute, routeOf, similarity } from "../../src/fingerprint.js";
 
 const scan = (overrides = {}) => ({
   url: "http://localhost:2368/ghost/?ref=1#/posts",
@@ -16,11 +16,13 @@ test("the route keeps the hash route and drops the query unless requested", () =
   assert.equal(normalizeRoute("http://h/ghost/?ref=1#/posts", true), "http://h/ghost/?ref=1#/posts");
 });
 
-test("repeated consecutive descriptors count once, so list sizes don't create states", () => {
-  assert.deepEqual(collapse(["a", "b", "b", "b", "a"]), ["a", "b", "a"]);
+test("order and repetition of features don't matter, so list sizes don't create states", () => {
   const short = abstractionOf(scan(), { includeQuery: false });
+  const reordered = abstractionOf(scan({ descriptors: [...scan().descriptors].reverse() }), { includeQuery: false });
   const long = abstractionOf(scan({ descriptors: [...scan().descriptors, "link|a|||"] }), { includeQuery: false });
-  assert.equal(fingerprintOf(short), fingerprintOf(long));
+  assert.equal(fingerprintOf(reordered), fingerprintOf(short));
+  assert.equal(fingerprintOf(long), fingerprintOf(short));
+  assert.equal(routeOf(short), "http://localhost:2368/ghost/#/posts");
 });
 
 test("an open dialog or an alert is a different state", () => {
