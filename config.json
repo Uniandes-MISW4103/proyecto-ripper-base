@@ -1,16 +1,29 @@
 {
   "url": "https://angular-6-registration-login-example.stackblitz.io",
+  "seed": 4103,
+  "browser": "chromium",
   "headless": true,
-  "depthLevels": 1,
-  "inputValues": false,
-  "values": {
-    "userInput": "Mario",
-    "passwordInput": "123456",
-    "passwordTwoInput": "123456",
-    "nameInput": "Mario",
-    "emailInput": "mario@b.com"
+  "viewport": {
+    "width": 1280,
+    "height": 720
   },
-  "browsers": [
-    "chromium"
-  ]
+  "maxDepth": 2,
+  "maxActions": 200,
+  "maxStates": 50,
+  "maxDurationSeconds": 0,
+  "settleMs": 500,
+  "actionTimeoutMs": 5000,
+  "navigationTimeoutMs": 15000,
+  "scope": [],
+  "exclude": [
+    "signout",
+    "sign out",
+    "logout",
+    "log out"
+  ],
+  "fingerprint": {
+    "ignore": [],
+    "includeQuery": false
+  },
+  "values": {}
 }
