@@ -6,16 +6,10 @@ aristas son las **acciones** que llevan de un estado a otro (seguir un enlace, h
 llenar y enviar un formulario, elegir una opción). Es una técnica de reconocimiento: descubre la
 estructura de la aplicación y errores evidentes sin escribir casos de prueba.
 
-Este ripper:
-
-- explora de forma **sistemática** (en anchura), estado por estado, cada acción disponible;
-- reconoce los estados a los que se llega sin cambiar de URL (diálogos, paneles, mensajes);
-- es **reproducible**: con la misma semilla y los mismos parámetros recorre la misma secuencia de
-  eventos;
-- **guarda su avance** después de cada acción, de modo que una exploración detenida (por un
-  presupuesto o con Ctrl+C) se puede continuar más tarde desde el mismo punto;
-- asocia cada falla (errores de JavaScript, de consola o HTTP) a la acción que la produjo, con los
-  pasos para reproducirla.
+Este ripper explora de forma **sistemática** (en anchura) cada acción de cada estado, incluidos los
+estados a los que se llega sin cambiar de URL (diálogos, paneles, mensajes). Es **reproducible** con
+una semilla, **guarda su avance** después de cada acción para continuar una exploración detenida, y
+asocia cada falla (errores de JavaScript, de consola o HTTP) a la acción que la produjo.
 
 Usa [Playwright](https://playwright.dev) como librería y se inspira en
 [TheSoftwareDesignLab/RIPuppetCoursera](https://github.com/TheSoftwareDesignLab/RIPuppetCoursera).
@@ -63,19 +57,6 @@ misw-4103-ripper/
 ├── config.json        # parámetros de la exploración
 ├── hooks.js           # preparación de la aplicación (inicio de sesión) y exclusiones propias
 ├── src/               # el ripper
-│   ├── cli.js         # comandos test y resume
-│   ├── config.js      # lectura y validación de config.json
-│   ├── ripper.js      # ciclo de exploración
-│   ├── model.js       # modelo: estados, eventos y acciones pendientes
-│   ├── scan.js        # elementos interactivos de la página
-│   ├── fingerprint.js # identificación de estados
-│   ├── discovery.js   # acciones de cada estado, alcance y exclusiones
-│   ├── actions.js     # ejecución de las acciones
-│   ├── data.js        # valores de los campos
-│   ├── oracles.js     # detección de fallas
-│   ├── browser.js     # navegador y sesión
-│   ├── checkpoint.js  # avance guardado de cada ejecución
-│   └── report/        # summary.json y report.html
 └── test/              # pruebas del ripper (npm run test:engine)
 ```
 
@@ -136,29 +117,24 @@ ejemplo, un formulario de búsqueda).
 
 ## Cómo explora
 
-1. Abre `url` y registra el estado inicial (`s0`) con sus **acciones**: enlaces dentro del alcance,
-   botones, casillas, cada opción de las listas desplegables (hasta cinco por lista), cada campo de
-   texto fuera de un formulario, y cada formulario como una sola acción (llenar sus campos y
-   enviarlo). Si hay un diálogo abierto, solo se consideran los elementos del diálogo.
-2. Toma la siguiente acción pendiente, en anchura: primero todas las del estado inicial, luego las de
-   los estados a profundidad 1, y así sucesivamente. El orden de las acciones de cada estado depende
-   de la semilla.
-3. Lleva el navegador al estado de esa acción. Si no está en él, lo **restaura**: abre `url` y repite
-   el camino de acciones con el que se descubrió el estado.
-4. Ejecuta la acción, espera a que la página deje de cambiar e identifica el estado resultante: uno
-   nuevo, uno conocido o el mismo. Registra el evento con su resultado y las fallas que aparecieron.
-5. Si el estado es nuevo y está por debajo de `maxDepth`, agrega sus acciones a las pendientes.
-6. Guarda el avance y repite hasta que no queden acciones pendientes o se alcance un presupuesto.
+El ripper parte de `url` (el estado `s0`) y, en cada estado, registra sus **acciones**: enlaces dentro
+del alcance, botones, casillas, hasta cinco opciones por lista desplegable, cada campo de texto fuera
+de un formulario y cada formulario como una sola acción (llenar sus campos y enviarlo). Si hay un
+diálogo abierto, solo considera los elementos del diálogo.
 
-Un **estado** se identifica por la ruta de la página (sin la consulta) y la estructura de sus
-elementos interactivos, sus títulos principales, el diálogo abierto y la presencia de alertas o
-campos inválidos, sin el texto libre ni los identificadores que el framework genera en cada render.
-Una lista que crece no crea un estado nuevo.
+Ejecuta las acciones pendientes en anchura (primero las del estado inicial, luego las de
+profundidad 1, y así sucesivamente), en un orden que depende de la semilla. Antes de cada acción
+lleva el navegador a su estado; si no está en él, lo **restaura** abriendo `url` y repitiendo el
+camino con el que lo descubrió. Después de la acción espera a que la página deje de cambiar,
+identifica el estado resultante, registra el evento y guarda el avance. Los estados nuevos por
+debajo de `maxDepth` agregan sus acciones a las pendientes.
 
-Resultados de un evento: `new-state`, `known-state`, `same-state`, `external` (la acción intentó
-salir del alcance) y `error` (la acción no se pudo ejecutar, por ejemplo porque el elemento ya no
-existe). Un estado que no se puede restaurar se marca como no restaurable y sus acciones pendientes
-se omiten.
+Un **estado** se identifica por la ruta de la página (sin la consulta), los elementos interactivos
+visibles (sin su texto ni los identificadores que el framework genera), los títulos principales, el
+diálogo abierto y la presencia de alertas; una lista que crece no crea un estado nuevo. Resultados
+de un evento: `new-state`, `known-state`, `same-state`, `external` (intentó salir del alcance) y
+`error` (la acción no se pudo ejecutar). Un estado que no se puede restaurar se marca como no
+restaurable y sus acciones pendientes se omiten.
 
 ### Fallas que detecta
 
@@ -198,6 +174,12 @@ mismos parámetros. Entre sesiones pueden cambiar los presupuestos, los tiempos 
 cambian `url`, `seed`, `browser`, `viewport`, `maxDepth`, `scope`, `exclude`, `fingerprint` o
 `values`, el ripper no continúa la ejecución e indica qué campo cambió.
 
+## Ejemplo incluido
+
+`config.json` explora el demo de StackBlitz con `maxDepth` 2: pasa la página "Run this project" y
+descubre la página de inicio de sesión, la de registro y el inicio de sesión fallido (cuatro estados,
+unos 30 segundos). Los resultados quedan en `results/<fecha>/`.
+
 ## Resultados y reporte
 
 Cada ejecución crea `results/<fecha>/` (en el `.gitignore`) con:
@@ -218,12 +200,8 @@ configuración o la preparación (`beforeExploring`, la página inicial) fallaro
 ## Solución de problemas
 
 - **`Executable doesn't exist at …`**: falta el navegador; ejecuten `npm run ripper:prepare`.
-- **`Campo desconocido en config.json`** o **`config.json: "…" debe ser …`**: corrijan el campo
-  indicado.
-- **`No hay ejecuciones sin terminar`**: todas las ejecuciones de `results/` terminaron; inicien una
-  nueva con `npm run ripper:test`.
-- **`config.json cambió en …`**: restauren esos campos para continuar la ejecución, o inicien una
-  nueva.
+- **`Campo desconocido en config.json`**, **`config.json: "…" debe ser …`** o **`config.json cambió
+  en …`**: corrijan o restauren el campo indicado (o inicien una ejecución nueva).
 - **Muchos estados no restaurables**: la exploración cambió los datos que el camino necesita; usen
   `npm run abp:reset`, excluyan las acciones que borran datos o usen `fingerprint.ignore` para las
   regiones que cambian.
