@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Fixture: página 2</title></head>
+<body>
+<h1>Página 2</h1>
+<a href="/">Inicio</a>
+<label><input type="checkbox" id="advanced"> Avanzado</label>
+<section id="extra" hidden><h2>Opciones avanzadas</h2><button id="apply">Aplicar</button></section>
+<select id="color" aria-label="Color">
+  <option value="">Elija un color</option>
+  <option value="red">Rojo</option>
+  <option value="blue">Azul</option>
+</select>
+<script>
+  document.getElementById("advanced").addEventListener("change", (event) => {
+    document.getElementById("extra").hidden = !event.target.checked;
+  });
+</script>
+</body>
+</html>

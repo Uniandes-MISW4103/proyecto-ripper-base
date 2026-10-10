@@ -1,13 +1,15 @@
 {
   "name": "misw-4103-ripper",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "license": "MIT",
-  "description": "This repository contains the code for a random tester developed using [Playwright](https://playwright.dev/)",
+  "type": "module",
+  "description": "GUI ripper built with Playwright: systematic, seeded and resumable exploration of a web application",
   "keywords": [
     "playwright",
-    "random",
-    "tester",
-    "ripper"
+    "gui-ripping",
+    "ripper",
+    "exploration",
+    "testing"
   ],
   "contributors": [
     {
@@ -32,13 +34,14 @@
   },
   "scripts": {
     "prepare": "npx playwright install chromium",
-    "test": "node index.js",
-    "test:ui": "cross-env HEADLESS=false node index.js"
+    "test": "node src/cli.js test",
+    "test:ui": "cross-env HEADLESS=false node src/cli.js test",
+    "resume": "node src/cli.js resume",
+    "test:engine": "node --test \"test/**/*.test.js\""
   },
   "dependencies": {
     "@faker-js/faker": "~10.6.0",
     "cross-env": "~10.1.0",
-    "node-html-parser": "~9.0.4",
     "playwright": "~1.63.0"
   }
 }

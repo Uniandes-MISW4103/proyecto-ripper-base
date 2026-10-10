@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reporte del ripper</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --muted: #59636e; --line: #d1d9e0; --panel: #f6f8fa;
+    --node: #0969da; --fail: #cf222e; --edge: #8c959f; --accent: #8250df;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --line: #3d444d; --panel: #151b23;
+      --node: #4493f8; --fail: #f85149; --edge: #656c76; --accent: #ab7df8; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--fg); }
+  header, section { padding: 16px 24px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 0 0 8px; }
+  .muted { color: var(--muted); }
+  .counts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .count { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; }
+  .count b { font-size: 18px; display: block; }
+  main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); gap: 16px; padding: 0 24px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  #graph { border: 1px solid var(--line); border-radius: 6px; height: 560px; width: 100%; background: var(--panel); cursor: grab; touch-action: none; }
+  #graph .edge { fill: none; stroke: var(--edge); stroke-width: 1.5; }
+  #graph .edge.highlight { stroke: var(--accent); stroke-width: 3; }
+  #graph .node circle { fill: var(--node); stroke: var(--bg); stroke-width: 2; cursor: pointer; }
+  #graph .node.fail circle { fill: var(--fail); }
+  #graph .node.unreachable circle { stroke: var(--fg); stroke-dasharray: 3 3; }
+  #graph .node.selected circle { stroke: var(--accent); stroke-width: 4; }
+  #graph .node text { fill: var(--fg); font-size: 12px; pointer-events: none; }
+  #panel { border: 1px solid var(--line); border-radius: 6px; padding: 12px 16px; overflow: auto; max-height: 560px; }
+  #panel img { max-width: 100%; border: 1px solid var(--line); border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel); }
+  tr.clickable { cursor: pointer; }
+  tr.clickable:hover { background: var(--panel); }
+  code { font-size: 12px; word-break: break-all; }
+  .tag { display: inline-block; padding: 0 6px; border-radius: 10px; border: 1px solid var(--line); font-size: 12px; }
+  .tag.error, .tag.fail { border-color: var(--fail); color: var(--fail); }
+  ol { padding-left: 20px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Reporte del ripper</h1>
+  <div id="run" class="muted"></div>
+  <div id="counts" class="counts"></div>
+</header>
+<main>
+  <svg id="graph" role="img" aria-label="Grafo de estados y transiciones"></svg>
+  <aside id="panel"><p class="muted">Seleccione un estado del grafo.</p></aside>
+</main>
+<section>
+  <h2>Fallas</h2>
+  <div id="failures"></div>
+</section>
+<section>
+  <h2>Eventos</h2>
+  <div id="events"></div>
+</section>
+<script id="ripper-data" type="application/json">__RIPPER_DATA__</script>
+<script>
+"use strict";
+const data = JSON.parse(document.getElementById("ripper-data").textContent);
+const { summary, actions, events } = data;
+const states = summary.results.states;
+const stateById = new Map(states.map((state) => [state.id, state]));
+const svgNS = "http://www.w3.org/2000/svg";
+
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    if (key === "onclick") node.addEventListener("click", value);
+    else node.setAttribute(key, value);
+  }
+  for (const child of children) node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+  return node;
+}
+function svg(tag, attrs = {}) {
+  const node = document.createElementNS(svgNS, tag);
+  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+  return node;
+}
+const actionText = (stateId, actionId) => {
+  const action = actions[stateId]?.[actionId];
+  return action ? `${action.kind} "${action.label}"` : actionId;
+};
+function table(headers, rows, onRowClick) {
+  return el("table", {},
+    el("thead", {}, el("tr", {}, ...headers.map((header) => el("th", {}, header)))),
+    el("tbody", {}, ...rows.map((row, index) => {
+      const tr = el("tr", onRowClick ? { class: "clickable", onclick: () => onRowClick(index) } : {}, ...row.map((cell) => el("td", {}, cell)));
+      return tr;
+    })));
+}
+
+// Header
+document.getElementById("run").textContent =
+  `Ejecución ${summary.runId} · ${summary.status} · semilla ${summary.config.seed} · ${summary.config.url} · ` +
+  `${summary.environment.browser} · ${summary.sessions.length} sesión(es) · ${Math.round(summary.durationMs / 1000)} s`;
+const labels = { states: "Estados", events: "Eventos", failures: "Fallas", unreachableStates: "Estados no restaurables",
+  pendingActions: "Acciones pendientes", skippedActions: "Acciones omitidas" };
+for (const [key, value] of Object.entries(summary.results.counts)) {
+  document.getElementById("counts").append(el("div", { class: "count" }, el("b", {}, value), labels[key] ?? key));
+}
+
+// Graph: one column per depth, states in discovery order.
+const graph = document.getElementById("graph");
+const columns = new Map();
+const position = new Map();
+for (const state of states) {
+  const column = columns.get(state.depth) ?? [];
+  column.push(state);
+  columns.set(state.depth, column);
+  position.set(state.id, { x: 60 + state.depth * 220, y: 50 + (column.length - 1) * 70 });
+}
+const failing = new Set(events.filter((event) => event.failures.length > 0).map((event) => event.to ?? event.from));
+const defs = svg("defs");
+const marker = svg("marker", { id: "arrow", viewBox: "0 0 10 10", refX: "10", refY: "5", markerUnits: "userSpaceOnUse", markerWidth: "10", markerHeight: "10", orient: "auto-start-reverse" });
+marker.append(svg("path", { d: "M 0 0 L 10 5 L 0 10 z", style: "fill: var(--edge)" }));
+defs.append(marker);
+const viewport = svg("g");
+graph.append(defs, viewport);
+const edges = new Map();
+for (const event of events) {
+  if (event.to === null || event.to === event.from) continue;
+  const key = `${event.from}>${event.to}`;
+  edges.set(key, [...(edges.get(key) ?? []), event]);
+}
+const edgeNodes = [];
+for (const [key, list] of edges) {
+  const [from, to] = key.split(">");
+  const a = position.get(from);
+  const b = position.get(to);
+  const dx = Math.max(60, Math.abs(b.x - a.x) / 2);
+  const path = svg("path", { class: "edge", d: `M ${a.x} ${a.y} C ${a.x + dx} ${a.y}, ${b.x - dx} ${b.y}, ${b.x - 20} ${b.y}`, "marker-end": "url(#arrow)" });
+  const title = svg("title");
+  title.textContent = list.map((event) => `#${event.event} ${event.kind} "${event.label}"`).join("\n");
+  path.append(title);
+  path.dataset.from = from;
+  path.dataset.to = to;
+  edgeNodes.push(path);
+  viewport.append(path);
+}
+const nodeElements = new Map();
+for (const state of states) {
+  const { x, y } = position.get(state.id);
+  const classes = ["node", failing.has(state.id) ? "fail" : "", state.unreachable ? "unreachable" : ""].join(" ");
+  const group = svg("g", { class: classes, transform: `translate(${x} ${y})`, tabindex: "0", role: "button", "aria-label": `Estado ${state.id}` });
+  const circle = svg("circle", { r: "18" });
+  const label = svg("text", { x: "24", y: "4" });
+  label.textContent = state.id;
+  const title = svg("title");
+  title.textContent = `${state.id} · ${state.title || state.url}`;
+  group.append(circle, label, title);
+  group.addEventListener("click", () => showState(state.id));
+  group.addEventListener("keydown", (event) => { if (event.key === "Enter") showState(state.id); });
+  nodeElements.set(state.id, group);
+  viewport.append(group);
+}
+
+// Pan and zoom
+let view = { x: 0, y: 0, k: 1 };
+const applyView = () => viewport.setAttribute("transform", `translate(${view.x} ${view.y}) scale(${view.k})`);
+graph.addEventListener("wheel", (event) => {
+  event.preventDefault();
+  const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
+  const rect = graph.getBoundingClientRect();
+  const px = event.clientX - rect.left;
+  const py = event.clientY - rect.top;
+  view = { k: view.k * factor, x: px - (px - view.x) * factor, y: py - (py - view.y) * factor };
+  applyView();
+}, { passive: false });
+let drag = null;
+graph.addEventListener("pointerdown", (event) => { drag = { x: event.clientX - view.x, y: event.clientY - view.y }; });
+window.addEventListener("pointermove", (event) => { if (drag) { view.x = event.clientX - drag.x; view.y = event.clientY - drag.y; applyView(); } });
+window.addEventListener("pointerup", () => { drag = null; });
+
+// Panel
+const panel = document.getElementById("panel");
+function reproduction(path) {
+  if (path.length === 0) return el("p", { class: "muted" }, "Estado inicial: abrir la URL de inicio.");
+  return el("ol", {}, el("li", {}, `Abrir ${summary.config.url}`),
+    ...path.map((step) => el("li", {}, `${actionText(step.from, step.action)} (${step.from} → ${step.to})`)));
+}
+function showState(id) {
+  const state = stateById.get(id);
+  for (const [key, node] of nodeElements) node.classList.toggle("selected", key === id);
+  for (const edge of edgeNodes) edge.classList.toggle("highlight", edge.dataset.from === id || edge.dataset.to === id);
+  const outgoing = events.filter((event) => event.from === id);
+  panel.replaceChildren(
+    el("h2", {}, `Estado ${id}`),
+    el("p", {}, el("b", {}, state.title || "(sin título)"), el("br"), el("code", {}, state.url)),
+    el("p", { class: "muted" }, `Profundidad ${state.depth} · ${state.actions} acciones · ${state.excluded} excluidas` +
+      (state.unreachable ? " · no se pudo restaurar" : "")),
+    el("img", { src: state.screenshot, alt: `Captura del estado ${id}` }),
+    el("h2", { style: "margin-top: 12px" }, "Cómo llegar"),
+    reproduction(state.path),
+    el("h2", {}, "Acciones ejecutadas"),
+    outgoing.length === 0 ? el("p", { class: "muted" }, "Ninguna.") :
+      table(["#", "Acción", "Destino", "Resultado"], outgoing.map((event) => [
+        event.event, `${event.kind} "${event.label}"`, event.to ?? "?", outcomeTag(event)]),
+        (index) => showEvent(outgoing[index])),
+  );
+}
+function outcomeTag(event) {
+  const failed = event.failures.length > 0;
+  return el("span", { class: `tag ${event.outcome === "error" ? "error" : failed ? "fail" : ""}` },
+    event.outcome + (failed ? ` · ${event.failures.length} fallas` : ""));
+}
+function showEvent(event) {
+  const state = stateById.get(event.from);
+  panel.replaceChildren(
+    el("h2", {}, `Evento #${event.event}`),
+    el("p", {}, `${event.from} → ${event.to ?? "?"} · `, outcomeTag(event)),
+    el("p", {}, `${event.kind} "${event.label}"`, el("br"), el("code", {}, actions[event.from]?.[event.action]?.target ?? "")),
+    event.screenshot ? el("img", { src: event.screenshot, alt: "Elemento antes de la acción" }) : el("p", { class: "muted" }, "Sin captura del elemento."),
+    event.error ? el("p", {}, el("b", {}, "Error de la acción: "), event.error) : "",
+    event.dialogs.length ? el("p", {}, el("b", {}, "Diálogos: "), event.dialogs.join(" | ")) : "",
+    event.external.length ? el("p", {}, el("b", {}, "Navegación externa bloqueada: "), event.external.join(" ")) : "",
+    el("h2", { style: "margin-top: 12px" }, "Fallas"),
+    event.failures.length === 0 ? el("p", { class: "muted" }, "Ninguna.") :
+      el("ul", {}, ...event.failures.map((failure) => el("li", {}, el("b", {}, failure.type), " ", failure.message))),
+    el("h2", {}, "Cómo reproducirlo"),
+    el("ol", {}, el("li", {}, `Abrir ${summary.config.url}`),
+      ...state.path.map((step) => el("li", {}, actionText(step.from, step.action))),
+      el("li", {}, `${event.kind} "${event.label}"`)),
+    el("p", {}, el("a", { href: "#", onclick: (e) => { e.preventDefault(); showState(event.from); } }, `Volver al estado ${event.from}`)),
+  );
+}
+
+// Tables
+const failureRows = events.flatMap((event) => event.failures.map((failure) => ({ event, failure })));
+document.getElementById("failures").append(failureRows.length === 0 ? el("p", { class: "muted" }, "La exploración no encontró fallas.") :
+  table(["#", "Tipo", "Mensaje", "Acción"], failureRows.map(({ event, failure }) => [
+    event.event, failure.type, failure.message, `${event.from}: ${event.kind} "${event.label}"`]),
+    (index) => showEvent(failureRows[index].event)));
+document.getElementById("events").append(events.length === 0 ? el("p", { class: "muted" }, "Sin eventos.") :
+  table(["#", "Desde", "Acción", "Hacia", "Resultado"], events.map((event) => [
+    event.event, event.from, `${event.kind} "${event.label}"`, event.to ?? "?", outcomeTag(event)]),
+    (index) => showEvent(events[index])));
+
+if (states.length > 0) showState(states[0].id);
+</script>
+</body>
+</html>

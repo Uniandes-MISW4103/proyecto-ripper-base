@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Fixture: inicio</title></head>
+<body>
+<h1>Inicio</h1>
+<nav>
+  <a href="/page2.html">Página 2</a>
+  <a href="/page3.html">Página 3</a>
+  <a href="https://example.com/">Sitio externo</a>
+  <a href="/signout">Sign out</a>
+</nav>
+<button id="open">Abrir diálogo</button>
+<button id="boom">Fallar</button>
+<button id="missing">Recurso</button>
+<form id="contact">
+  <label>Nombre <input name="name"></label>
+  <label>Correo <input type="email" name="email" required></label>
+  <button type="submit">Enviar</button>
+</form>
+<div id="out"></div>
+<script>
+  const out = document.getElementById("out");
+  document.getElementById("open").addEventListener("click", () => {
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    dialog.innerHTML = '<h2>Confirmación</h2><button id="close">Cerrar</button><button id="ok">Aceptar</button>';
+    document.body.append(dialog);
+    document.getElementById("close").addEventListener("click", () => dialog.remove());
+    document.getElementById("ok").addEventListener("click", () => {
+      dialog.remove();
+      out.innerHTML = "<h2>Aceptado</h2>";
+    });
+  });
+  document.getElementById("boom").addEventListener("click", () => {
+    setTimeout(() => { throw new Error("Fallo de prueba"); });
+  });
+  document.getElementById("missing").addEventListener("click", () => fetch("/missing.json"));
+  document.getElementById("contact").addEventListener("submit", (event) => {
+    event.preventDefault();
+    out.innerHTML = '<h2>Gracias</h2><a href="/">Volver</a>';
+  });
+</script>
+</body>
+</html>
